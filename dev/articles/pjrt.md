@@ -7,8 +7,8 @@ The {pjrt} package provides an R interface to
 [OpenXLA](https://openxla.org/) project. PJRT is a portability layer
 that allows frameworks to work with different hardware backends through
 a standardized interface. Anyone can implement a PJRT plugin for a
-specific hardware backend, and this package currently supports CPU,
-NVIDIA GPU, and Metal (Apple GPU; experimental) plugins.
+specific hardware backend, and this package currently supports CPU and
+NVIDIA GPU (CUDA) plugins.
 
 A key design principle of pjrt is **asynchronous dispatch**: operations
 like buffer creation and program execution return immediately with
@@ -99,7 +99,7 @@ device(buf)
 ```
 
 To move data back to the host, use
-[`as_array()`](https://r-xla.github.io/tengen/reference/as_array.html).
+[`as_array()`](https://r-xla.github.io/xlamisc/reference/as_array.html).
 This blocks until the data is available:
 
 ``` r
@@ -165,7 +165,7 @@ Single outputs are unpacked by default; set `simplify = FALSE` to always
 get a list.
 
 To retrieve the result as an R array, call
-[`as_array()`](https://r-xla.github.io/tengen/reference/as_array.html):
+[`as_array()`](https://r-xla.github.io/xlamisc/reference/as_array.html):
 
 ``` r
 
@@ -199,7 +199,7 @@ return `PJRTBuffer` objects immediately without blocking R. The buffer
 may not be ready yet, but you can pass it directly to other operations.
 You only pay the synchronization cost when you actually need the
 host-side result (e.g. calling
-[`as_array()`](https://r-xla.github.io/tengen/reference/as_array.html)).
+[`as_array()`](https://r-xla.github.io/xlamisc/reference/as_array.html)).
 
 ### Async types
 
@@ -283,7 +283,7 @@ Blocking occurs when:
     [`await()`](https://r-xla.github.io/pjrt/dev/reference/await.md) on
     a buffer
 2.  Calling
-    [`as_array()`](https://r-xla.github.io/tengen/reference/as_array.html)
+    [`as_array()`](https://r-xla.github.io/xlamisc/reference/as_array.html)
     on a buffer
 3.  Calling
     [`value()`](https://r-xla.github.io/pjrt/dev/reference/value.md) on
@@ -291,9 +291,9 @@ Blocking occurs when:
 4.  Printing a buffer (needs to read values to display them)
 
 Operations like
-[`shape()`](https://r-xla.github.io/tengen/reference/shape.html),
+[`shape()`](https://r-xla.github.io/xlamisc/reference/shape.html),
 [`elt_type()`](https://r-xla.github.io/pjrt/dev/reference/elt_type.md),
-and [`device()`](https://r-xla.github.io/tengen/reference/device.html)
+and [`device()`](https://r-xla.github.io/xlamisc/reference/device.html)
 do **not** block — buffer metadata is available immediately.
 
 ### Writing efficient loops

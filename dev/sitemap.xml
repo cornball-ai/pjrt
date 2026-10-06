@@ -42,6 +42,7 @@
 <url><loc>https://r-xla.github.io/pjrt/dev/reference/pjrt_program.html</loc></url>
 <url><loc>https://r-xla.github.io/pjrt/dev/reference/pjrt_register_custom_call.html</loc></url>
 <url><loc>https://r-xla.github.io/pjrt/dev/reference/platform.html</loc></url>
+<url><loc>https://r-xla.github.io/pjrt/dev/reference/platform_support.html</loc></url>
 <url><loc>https://r-xla.github.io/pjrt/dev/reference/plugin_attributes.html</loc></url>
 <url><loc>https://r-xla.github.io/pjrt/dev/reference/plugin_client_create.html</loc></url>
 <url><loc>https://r-xla.github.io/pjrt/dev/reference/plugins_downloaded.html</loc></url>
@@ -63,6 +64,5 @@
 <url><loc>https://r-xla.github.io/pjrt/dev/reference/tree_size.html</loc></url>
 <url><loc>https://r-xla.github.io/pjrt/dev/reference/unflatten.html</loc></url>
 <url><loc>https://r-xla.github.io/pjrt/dev/reference/value.html</loc></url>
-<url><loc>https://r-xla.github.io/pjrt/dev/todos.html</loc></url>
 </urlset>
 
