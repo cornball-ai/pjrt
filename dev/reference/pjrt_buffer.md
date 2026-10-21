@@ -23,7 +23,7 @@ type already share a bit pattern and the vector travels zero-copy: an
 `NA` at `"i64"` arrives as `INT64_MIN`. Both warn, and
 [`as_array()`](https://r-xla.github.io/xlamisc/reference/as_array.html)
 warns about them again on the way back, its `check` argument defaulting
-to `"warn"`. At every other integer element type, and at `"pred"`, a
+to `"warn"`. At every other integer element type, and at `"bool"`, a
 missing value is an error – including an `integer64` `NA` at `"ui64"`,
 where those same bits are the ordinary value `2^63`.
 
@@ -66,15 +66,22 @@ pjrt_empty(dtype, shape, device = NULL)
   [`DataType`](https://r-xla.github.io/xlamisc/reference/DataType.html))  
   The type of the buffer. Currently supported types are:
 
-  - `"pred"`: predicate (i.e. a boolean)
+  - `"bool"`: boolean (`"pred"` and `"i1"` are accepted as aliases)
 
   - `"{s,u}{8,16,32,64}"`: Signed and unsigned integer (for `integer` or
     `double` data).
 
-  - `"f{32,64}"`: Floating point (for `double` or `integer` data). The
-    default (`NULL`) depends on the method:
+  - `"f{32,64}"`: Floating point (for `double` or `integer` data).
 
-  - `logical` -\> `"pred"`
+  - `"bf16"`: bfloat16 (for `double` or `integer` data). Values are
+    rounded to the nearest bfloat16 value, ties to even; the largest
+    finite value is about 3.3895e38, and magnitudes at or above the
+    overflow midpoint (about 3.3962e38) round to `Inf`.
+    [`as_array()`](https://r-xla.github.io/xlamisc/reference/as_array.html)
+    returns the exactly representable values as `double`. The default
+    (`NULL`) depends on the method:
+
+  - `logical` -\> `"bool"`
 
   - `integer` -\> `"i32"`
 
@@ -151,6 +158,22 @@ pjrt_empty(dtype, shape, device = NULL)
 - [`safetensors::safe_load_file`](https://mlverse.github.io/safetensors/reference/safe_load_file.html)
   for reading from a safetensors file.
 
+A buffer can also be serialized like any R object, e.g. with
+[`saveRDS()`](https://rdrr.io/r/base/readRDS.html): its data is copied
+to the host, and unserializing it uploads the data to the default device
+(the first device of the `PJRT_PLATFORM` platform, `"cpu"` unless set) –
+not to the device it was saved from. A buffer saved on a GPU therefore
+also loads on a machine without one; use
+[`copy_buffer()`](https://r-xla.github.io/pjrt/dev/reference/copy_buffer.md)
+to move it afterwards. A buffer referenced several times in one
+serialized object is written once, and loads as one buffer. A loaded
+buffer is a NULL external pointer until its first use (e.g. by
+[`as_array()`](https://r-xla.github.io/xlamisc/reference/as_array.html),
+[`shape()`](https://r-xla.github.io/xlamisc/reference/shape.html) or
+printing), which fills in its address. This requires serialization
+format version 3 (R's default); a buffer serialized under version 2
+loads without its data.
+
 ## Scalars
 
 When calling this function on a vector of length 1, the resulting shape
@@ -192,7 +215,7 @@ scalar
 empty <- pjrt_empty(dtype = "f32", shape = c(2, 3))
 empty
 #> PJRTBuffer 
-#>  -6.0435e+10  3.0882e-41 -1.8980e+05
-#>   3.0882e-41 -4.2457e+05  3.0882e-41
+#>  2.8026e-45       -nan       -nan
+#>        -nan 1.2612e-44       -nan
 #> [ CPUf32{2x3} ] 
 ```

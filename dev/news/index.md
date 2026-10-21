@@ -2,6 +2,40 @@
 
 ## pjrt (development version)
 
+### Breaking changes
+
+- The boolean data type is now named `"bool"` everywhere.
+- The `"AnvlArray"`s the dispatcher wraps its outputs in no longer carry
+  a `$device` field; read the device off `$data`.
+- [`as_array_async()`](https://r-xla.github.io/pjrt/dev/reference/as_array_async.md)
+  now returns an R array whose values materialize when first read,
+  instead of a `PJRTArrayPromise`; `value()` is removed, use the array
+  directly or
+  [`await()`](https://r-xla.github.io/pjrt/dev/reference/await.md) it.
+
+### New features
+
+- A
+  [`dispatcher()`](https://r-xla.github.io/pjrt/dev/reference/dispatcher.md)
+  compile callback can declare `implicit_inputs` and `implicit_outputs`,
+  values the program takes and returns beyond the call’s arguments and
+  result, and an `on_success` function that receives the implicit
+  outputs and the call’s arguments after every successful run. An
+  implicit input’s [`get()`](https://rdrr.io/r/base/get.html) returns
+  the buffer to pass on.
+- `PJRTBuffer`s can now be serialized, e.g. with
+  [`saveRDS()`](https://rdrr.io/r/base/readRDS.html); they load onto the
+  default device.
+- `PJRTBuffer` supports the `"bf16"` (bfloat16) element type.
+- Bugfix: the `lu` custom call factorises a singular matrix instead of
+  failing with `getrf failed with info = <k>`.
+- New built-in `potrf` custom call: a batched Cholesky factorisation
+  through LAPACK on the host and cuSOLVER on CUDA, reporting each
+  matrix’s `info` instead of failing on one that is not positive
+  definite.
+- New custom call `print_tensor_ordered`: `print_tensor` that takes and
+  returns a `!stablehlo.token`, so that a chain of prints runs in order.
+
 ## pjrt 0.6.0
 
 ### Breaking changes
@@ -223,8 +257,7 @@ considerable performance benefits, especially on GPU. Specifically:
   is still synchronous, but there is now the asynchronous version
   [`as_array_async()`](https://r-xla.github.io/pjrt/dev/reference/as_array_async.md)
   but this is rarely needed. If used, it returns a `PJRTArrayPromise`
-  object which can be converted to an R `array`/`vector` via
-  [`value()`](https://r-xla.github.io/pjrt/dev/reference/value.md).
+  object which can be converted to an R `array`/`vector` via `value()`.
 - To check whether a `PJRTBuffer` or `PJRTArrayPromise` is ready, use
   [`is_ready()`](https://r-xla.github.io/pjrt/dev/reference/is_ready.md).
 

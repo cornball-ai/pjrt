@@ -13,7 +13,7 @@
 
     <a class="navbar-brand me-2" href="index.html">pjrt</a>
 
-    <small class="nav-text text-default me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.6.0.9000</small>
+    <small class="nav-text text-default me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.6.0.9001</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,7 +56,7 @@
 <p><code>pjrt</code> is the runtime layer of the r-xla stack. It compiles StableHLO/MLIR programs to hardware-specific executables and runs them via the PJRT C API. It supports CPU and CUDA backends through dynamically loaded plugins.</p>
 <p>Beyond the runtime, pjrt also owns the <strong>Rtree module</strong> (<code><a href="reference/build_tree.html">build_tree()</a></code>/<code><a href="reference/flatten.html">flatten()</a></code>/<code><a href="reference/unflatten.html">unflatten()</a></code> and the structural tree ops in <code>src/tree.h</code>/<code>src/tree.cpp</code>/<code>R/tree.R</code>); trees are opaque <code>RTree</code> external pointers. The Rtree is pjrt’s R analog of <a href="https://docs.jax.dev/en/latest/pytrees.html" class="external-link">JAX’s pytree</a>, which is where the idea comes from.</p>
 <p>It also owns the <strong>Dispatcher</strong> (<code><a href="reference/dispatcher.html">dispatcher()</a></code>/<code><a href="reference/dispatch.html">dispatch()</a></code>), the native eager-dispatch engine behind anvl’s <code>jit()</code>: an executable cache keyed on the inputs’ structure and abstract values, which calls back into R to compile only on a miss.</p>
-<p>The dispatcher’s C++ names anvl’s data model – the <code>"AnvlArray"</code> class, its <code>$data</code>/<code>$backend</code>/<code>$device</code> fields, the <code>"plain"</code> backend tag, and the <code>AnvlDtype</code> vocabulary. That is a contract pjrt defines and anvl produces; it is deliberately <em>not</em> a package dependency. <strong>pjrt must not depend on anvl, in <code>Suggests</code> or anywhere else.</strong> <code>tests/testthat/test-dispatch.R</code> therefore drives the engine with its own fixtures (<code>parr()</code>, <code>qarr()</code>, <code>pjrt_entry()</code>), and the integration test that anvl’s real callback matches this engine lives in anvl’s <code>test-jit-dispatch.R</code>, which is the side of the dependency that can hold it.</p>
+<p>The dispatcher’s C++ names anvl’s data model – the <code>"AnvlArray"</code> class, its <code>$data</code>/<code>$backend</code> fields, the <code>"plain"</code> backend tag, and the <code>AnvlDtype</code> vocabulary. That is a contract pjrt defines and anvl produces; it is deliberately <em>not</em> a package dependency. <strong>pjrt must not depend on anvl, in <code>Suggests</code> or anywhere else.</strong> <code>tests/testthat/test-dispatch.R</code> therefore drives the engine with its own fixtures (<code>parr()</code>, <code>qarr()</code>, <code>pjrt_entry()</code>), and the integration test that anvl’s real callback matches this engine lives in anvl’s <code>test-jit-dispatch.R</code>, which is the side of the dependency that can hold it.</p>
 </div>
 <div class="section level2">
 <h2 id="core-design">Core Design<a class="anchor" aria-label="anchor" href="#core-design"></a></h2>
@@ -69,8 +69,8 @@
 <pre><code>PJRTProgram            – MLIR or HLO source code ready for compilation
   └─ PJRTLoadedExecutable  – compiled, device-specific executable</code></pre>
 <pre><code>PJRTBuffer         – device-resident tensor (the main data object)
-PJRTArrayPromise   – async device-to-host transfer result (environment-based)
-PJRTElementType    – dtype enum (pred, i8–i64, ui8–ui64, f32, f64)</code></pre>
+PJRTElementType    – dtype enum (bool, i8–i64, ui8–ui64, f32, f64)</code></pre>
+<p>A <code>PJRTBuffer</code> is an external pointer whose protected slot holds an ALTREP <em>carrier</em> (<code>src/buffer_sexp.{h,cpp}</code>). The carrier holds the CPU keepalive and gives buffers a custom serialization (host bytes plus dtype and shape, re-uploaded on load to <code>the[["unserialize_device"]]</code>, else the default device – the device is deliberately not saved; anvl writes that entry from its <code>.onLoad()</code> so that buffers load onto its own default device; see <code>buffer_serialized_state()</code>/<code>buffer_unserialize()</code> in <code>buffer.R</code>). Since R tracks external pointers by reference, a buffer referenced several times is written once and loads as one object. A loaded buffer is a NULL pointer until its first use, when <code>rpjrt::buffer_xptr()</code> moves the uploaded buffer into it, so C++ must reach a buffer only through <code>rpjrt::buffer_xptr()</code>/<code>rpjrt::as_buffer()</code>, and its keepalive only through <code>rpjrt::buffer_keepalive()</code>/<code>rpjrt::set_buffer_keepalive()</code> – never <code>R_ExternalPtrAddr()</code>/<code>R_ExternalPtrProtected()</code> directly. C++ creates buffer objects with <code>rpjrt::wrap_buffer()</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="plugin-and-client-lifecycle">Plugin and Client Lifecycle<a class="anchor" aria-label="anchor" href="#plugin-and-client-lifecycle"></a></h3>
@@ -96,9 +96,9 @@ PJRTElementType    – dtype enum (pred, i8–i64, ui8–ui64, f32, f64)</code><
 <ul><li>
 <code><a href="reference/pjrt_execute.html">pjrt_execute()</a></code> returns <code>PJRTBuffer</code>s that may not be ready yet. PJRT tracks dependencies internally, so unready buffers can be passed directly as inputs to the next execution.</li>
 <li>
-<code><a href="reference/as_array_async.html">as_array_async()</a></code> returns a <code>PJRTArrayPromise</code> (non-blocking device-to-host transfer).</li>
+<code><a href="reference/as_array_async.html">as_array_async()</a></code> returns a plain-looking R array that is an ALTREP <em>host array</em> (<code>src/host_array.cpp</code>): it has its final type, <code>dim</code> and class at once, and the first read of its data waits for the device-to-host transfer and materializes it.</li>
 <li>
-<code><a href="reference/is_ready.html">is_ready()</a></code> polls without blocking; <code><a href="reference/await.html">await()</a></code> and <code><a href="reference/value.html">value()</a></code> block until complete.</li>
+<code><a href="reference/is_ready.html">is_ready()</a></code> polls without blocking; <code><a href="reference/await.html">await()</a></code> blocks until complete (and materializes a host array). On any other R object, <code><a href="reference/is_ready.html">is_ready()</a></code> is <code>TRUE</code> and <code><a href="reference/await.html">await()</a></code> is a no-op.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="column-major-convention">Column-Major Convention<a class="anchor" aria-label="anchor" href="#column-major-convention"></a></h3>
@@ -118,7 +118,7 @@ PJRTElementType    – dtype enum (pred, i8–i64, ui8–ui64, f32, f64)</code><
 <code>loaded_executable.R</code> – <code><a href="reference/pjrt_execute.html">pjrt_execute()</a></code>
 </li>
 <li>
-<code>async.R</code> – <code><a href="reference/value.html">value()</a></code>, <code><a href="reference/is_ready.html">is_ready()</a></code>, <code><a href="reference/await.html">await()</a></code>, <code>PJRTArrayPromise</code>
+<code>async.R</code> – <code><a href="reference/is_ready.html">is_ready()</a></code>, <code><a href="reference/await.html">await()</a></code>
 </li>
 <li>
 <code>device.R</code> – <code><a href="reference/pjrt_device.html">pjrt_device()</a></code>, device spec parsing (“cpu:0”)</li>
